@@ -433,20 +433,22 @@ async function refreshItens() {
   renderItensTable();
 }
 
-function filtrarItens(tipo) {
+async function filtrarItens(tipo) {
   itensFiltro.tipo = tipo;
   document.querySelectorAll('#sec-itens .tab').forEach((t,i) => {
     t.classList.toggle('active', ['','MP','EMB','PI','PA'][i] === tipo);
   });
-  renderItensTable();
+  await refreshItens();
 }
 
 function renderItensTable() {
   const s = itensFiltro.search.toLowerCase();
   const fam = itensFiltro.familia_id;
+  const tipo = itensFiltro.tipo;
   const rows = S.itens.filter(i =>
     (!s || i.nome.toLowerCase().includes(s) || i.codigo.toLowerCase().includes(s)) &&
-    (!fam || String(i.familia_id) === String(fam))
+    (!fam || String(i.familia_id) === String(fam)) &&
+    (!tipo || i.tipo === tipo)
   );
   document.getElementById('itens-tbody').innerHTML = rows.map(item => `
     <tr>
