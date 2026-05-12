@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Qualimpel — Estoque</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0f172a; --bg2: #1e293b; --bg3: #334155;
+  --accent: #3b82f6; --accent2: #2563eb;
+  --green: #10b981; --yellow: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+  --text: #f1f5f9; --text2: #94a3b8; --text3: #64748b;
+  --border: #334155; --radius: 8px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+a { color: inherit; text-decoration: none; }
+input, select, textarea { background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius); padding: 8px 12px; font-size: 14px; width: 100%; outline: none; transition: border .2s; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+button { cursor: pointer; border: none; border-radius: var(--radius); font-size: 14px; padding: 8px 16px; transition: opacity .15s, transform .1s; }
+button:hover { opacity: .9; } button:active { transform: scale(.97); }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-success { background: var(--green); color: #fff; }
+.btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+
+/* Layout */
+#app { display: flex; height: 100vh; overflow: hidden; }
+#sidebar { width: 220px; background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; transition: width .2s; }
+#sidebar .logo { padding: 20px 16px 12px; border-bottom: 1px solid var(--border); }
+#sidebar .logo h2 { font-size: 16px; font-weight: 700; color: var(--accent); }
+#sidebar .logo p { font-size: 11px; color: var(--text3); margin-top: 2px; }
+nav { flex: 1; padding: 8px 0; overflow-y: auto; }
+nav .nav-section { font-size: 10px; font-weight: 700; color: var(--text3); letter-spacing: .08em; text-transform: uppercase; padding: 12px 16px 4px; }
+nav a { display: flex; align-items: center; gap: 10px; padding: 9px 16px; font-size: 13.5px; color: var(--text2); border-left: 3px solid transparent; transition: all .15s; }
+nav a:hover { background: var(--bg3); color: var(--text); }
+nav a.active { background: rgba(59,130,246,.15); color: var(--accent); border-left-color: var(--accent); }
+nav a .icon { font-size: 16px; width: 20px; text-align: center; }
+#sidebar .user-bar { padding: 12px 16px; border-top: 1px solid var(--border); font-size: 12px; }
+#sidebar .user-bar .user-name { font-weight: 600; color: var(--text); }
+#sidebar .user-bar .user-role { color: var(--text3); font-size: 11px; }
+#sidebar .user-bar button { margin-top: 8px; width: 100%; }
+
+#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+#topbar { height: 52px; background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 12px; flex-shrink: 0; }
+#topbar h1 { font-size: 17px; font-weight: 700; flex: 1; }
+#content { flex: 1; overflow-y: auto; padding: 20px; }
+
+/* Cards */
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.kpi { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+.kpi .kpi-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+.kpi .kpi-val { font-size: 26px; font-weight: 700; }
+.kpi .kpi-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+td { padding: 9px 10px; border-bottom: 1px solid rgba(255,255,255,.04); vertical-align: middle; }
+tr:hover td { background: rgba(255,255,255,.02); }
+
+/* Badges */
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+.badge-ok { background: rgba(16,185,129,.15); color: var(--green); }
+.badge-baixo { background: rgba(245,158,11,.15); color: var(--yellow); }
+.badge-zerado { background: rgba(239,68,68,.15); color: var(--red); }
+.badge-mp { background: rgba(59,130,246,.15); color: var(--accent); }
+.badge-emb { background: rgba(139,92,246,.15); color: var(--purple); }
+.badge-pi { background: rgba(245,158,11,.15); color: var(--yellow); }
+.badge-pa { background: rgba(16,185,129,.15); color: var(--green); }
+
+/* Modal */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 100; display: flex; align-items: center; justify-content: center; }
+.modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 24px; width: 90%; max-width: 680px; max-height: 90vh; overflow-y: auto; }
+.modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.form-row.full { grid-template-columns: 1fr; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group label { font-size: 12px; color: var(--text2); font-weight: 600; }
+.modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+/* Toast */
+#toast { position: fixed; bottom: 24px; right: 24px; z-index: 999; display: flex; flex-direction: column; gap: 8px; }
+.toast { padding: 12px 18px; border-radius: var(--radius); font-size: 13px; font-weight: 500; min-width: 240px; animation: slideIn .2s ease; box-shadow: var(--shadow); }
+.toast-success { background: var(--green); color: #fff; }
+.toast-error { background: var(--red); color: #fff; }
+.toast-info { background: var(--accent); color: #fff; }
+@keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* Tabs */
+.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+.tab { padding: 10px 18px; font-size: 13.5px; font-weight: 600; color: var(--text3); border-bottom: 2px solid transparent; cursor: pointer; transition: all .15s; }
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Alerts */
+.alert { padding: 10px 14px; border-radius: var(--radius); font-size: 13px; display: flex; align-items: center; gap: 8px; }
+.alert-warn { background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.3); color: var(--yellow); }
+.alert-danger { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); color: var(--red); }
+
+/* Filtros toolbar */
+.toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.toolbar input, .toolbar select { max-width: 200px; width: auto; }
+
+/* Receita editor */
+.receita-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.receita-row input { width: 100px; }
+.receita-row select { flex: 1; }
+.receita-row button { flex-shrink: 0; }
+
+/* Consumo preview */
+.consumo-table { width: 100%; }
+.consumo-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-radius: 4px; margin-bottom: 4px; font-size: 13px; }
+.consumo-row.ok { background: rgba(16,185,129,.08); }
+.consumo-row.fail { background: rgba(239,68,68,.08); }
+
+/* Login */
+#login-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); }
+.login-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; padding: 40px; width: 360px; }
+.login-card h1 { font-size: 22px; font-weight: 800; color: var(--accent); margin-bottom: 4px; }
+.login-card p { font-size: 13px; color: var(--text3); margin-bottom: 28px; }
+.login-card .form-group { margin-bottom: 16px; }
+.login-card button { width: 100%; margin-top: 8px; padding: 11px; font-size: 15px; font-weight: 600; }
+
+/* Chips família */
+.chip { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+
+/* Hidden */
+.hidden { display: none !important; }
+.section { display: none; }
+.section.active { display: block; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-page">
+  <div class="login-card">
+    <h1>📦 Qualimpel</h1>
+    <p>Sistema de Gestão de Estoque</p>
+    <div class="form-group"><label>E-mail</label><input type="email" id="login-email" value="admin@estoque.com" placeholder="seu@email.com"></div>
+    <div class="form-group"><label>Senha</label><input type="password" id="login-pass" value="admin123" placeholder="••••••••"></div>
+    <button class="btn-primary" onclick="doLogin()">Entrar</button>
+    <p style="margin-top:16px;font-size:12px;color:var(--text3);text-align:center">Demo: admin@estoque.com / admin123</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <div id="sidebar">
+    <div class="logo">
+      <h2>📦 Estoque</h2>
+      <p>Qualimpel ERP</p>
+    </div>
+    <nav>
+      <div class="nav-section">Visão Geral</div>
+      <a href="#" class="nav-link active" data-section="dashboard"><span class="icon">🏠</span> Dashboard</a>
+      <div class="nav-section">Cadastros</div>
+      <a href="#" class="nav-link" data-section="itens"><span class="icon">📋</span> Itens</a>
+      <a href="#" class="nav-link" data-section="familias"><span class="icon">🏷️</span> Famílias</a>
+      <div class="nav-section">Movimentações</div>
+      <a href="#" class="nav-link" data-section="entradas"><span class="icon">📥</span> Entradas NF</a>
+      <a href="#" class="nav-link" data-section="producao"><span class="icon">⚙️</span> Produção (PI/PA)</a>
+      <a href="#" class="nav-link" data-section="extrato"><span class="icon">📊</span> Extrato</a>
+      <div class="nav-section">Sistema</div>
+      <a href="#" class="nav-link" data-section="usuarios"><span class="icon">👥</span> Usuários</a>
+    </nav>
+    <div class="user-bar">
+      <div class="user-name" id="sb-user-name">—</div>
+      <div class="user-role" id="sb-user-role">—</div>
+      <button class="btn-ghost btn-sm" onclick="logout()">Sair</button>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="topbar">
+      <h1 id="page-title">Dashboard</h1>
+      <div id="topbar-actions"></div>
+    </div>
+    <div id="content">
+      <!-- Sections -->
+      <div id="sec-dashboard" class="section active"></div>
+      <div id="sec-itens" class="section"></div>
+      <div id="sec-familias" class="section"></div>
+      <div id="sec-entradas" class="section"></div>
+      <div id="sec-producao" class="section"></div>
+      <div id="sec-extrato" class="section"></div>
+      <div id="sec-usuarios" class="section"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="modal-root"></div>
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────────
+const S = { token: null, user: null, familias: [], itens: [] };
+
+// ─── API ──────────────────────────────────────────────────────────────────────
+const BASE = '';
+async function api(method, path, body = null, raw = false) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (S.token) opts.headers['Authorization'] = `Bearer ${S.token}`;
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(BASE + path, opts);
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ detail: r.statusText }));
+    throw new Error(err.detail || 'Erro desconhecido');
+  }
+  if (raw) return r;
+  return r.json();
+}
+const get = (p, q = {}) => api('GET', p + (Object.keys(q).length ? '?' + new URLSearchParams(q) : ''));
+const post = (p, b) => api('POST', p, b);
+const put = (p, b) => api('PUT', p, b);
+const del = (p) => api('DELETE', p);
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = msg;
+  document.getElementById('toast').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ─── MODAL ────────────────────────────────────────────────────────────────────
+function openModal(html, onClose) {
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `<div class="overlay" id="overlay">${html}</div>`;
+  root.querySelector('#overlay').addEventListener('click', e => {
+    if (e.target.id === 'overlay') closeModal();
+  });
+  if (onClose) window._modalOnClose = onClose;
+}
+function closeModal() {
+  document.getElementById('modal-root').innerHTML = '';
+  if (window._modalOnClose) { window._modalOnClose(); window._modalOnClose = null; }
+}
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const email = document.getElementById('login-email').value;
+  const pass = document.getElementById('login-pass').value;
+  try {
+    const fd = new URLSearchParams({ username: email, password: pass });
+    const r = await fetch('/api/auth/token', { method: 'POST', body: fd });
+    if (!r.ok) throw new Error((await r.json()).detail);
+    const data = await r.json();
+    S.token = data.access_token;
+    S.user = data.user;
+    document.getElementById('login-page').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('sb-user-name').textContent = S.user.nome;
+    document.getElementById('sb-user-role').textContent = { admin: 'Administrador', gestor: 'Gestor', tecnico: 'Operador' }[S.user.role] || S.user.role;
+    await loadGlobals();
+    navigate('dashboard');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+function logout() {
+  S.token = null; S.user = null;
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('login-page').classList.remove('hidden');
+}
+
+async function loadGlobals() {
+  [S.familias, S.itens] = await Promise.all([
+    get('/api/familias/'),
+    get('/api/itens/')
+  ]);
+}
+
+// ─── NAVIGATION ───────────────────────────────────────────────────────────────
+const PAGE_TITLES = {
+  dashboard: 'Dashboard', itens: 'Itens de Estoque',
+  familias: 'Famílias / Proprietários', entradas: 'Entradas de NF',
+  producao: 'Produção (PI / PA)', extrato: 'Extrato de Movimentações',
+  usuarios: 'Usuários'
+};
+const PAGE_LOADERS = {
+  dashboard: loadDashboard, itens: loadItens, familias: loadFamilias,
+  entradas: loadEntradas, producao: loadProducao, extrato: loadExtrato,
+  usuarios: loadUsuarios
+};
+
+function navigate(section) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(a => a.classList.remove('active'));
+  const sec = document.getElementById(`sec-${section}`);
+  if (sec) sec.classList.add('active');
+  const link = document.querySelector(`[data-section="${section}"]`);
+  if (link) link.classList.add('active');
+  document.getElementById('page-title').textContent = PAGE_TITLES[section] || section;
+  document.getElementById('topbar-actions').innerHTML = '';
+  if (PAGE_LOADERS[section]) PAGE_LOADERS[section]();
+}
+
+document.querySelectorAll('.nav-link').forEach(a => {
+  a.addEventListener('click', e => { e.preventDefault(); navigate(a.dataset.section); });
+});
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function tipoBadge(tipo) {
+  return `<span class="badge badge-${tipo.toLowerCase()}">${tipo}</span>`;
+}
+function statusBadge(s) {
+  const map = { OK: 'badge-ok', BAIXO: 'badge-baixo', ZERADO: 'badge-zerado' };
+  const labels = { OK: '✅ OK', BAIXO: '⚠️ Baixo', ZERADO: '🔴 Zerado' };
+  return `<span class="badge ${map[s] || ''}">${labels[s] || s}</span>`;
+}
+function familiaBadge(item) {
+  if (!item.familia_nome) return '—';
+  const cor = item.familia_cor || '#3B82F6';
+  return `<span class="chip" style="background:${cor}22;color:${cor}">${item.familia_nome}</span>`;
+}
+function fmt(n) { return (n || 0).toLocaleString('pt-BR', { maximumFractionDigits: 3 }); }
+function fmtDate(d) { if (!d) return '—'; return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR'); }
+function famOpts(sel) {
+  return S.familias.map(f => `<option value="${f.id}" ${sel == f.id ? 'selected' : ''}>${f.nome}</option>`).join('');
+}
+function itensByTipo(tipos) {
+  return S.itens.filter(i => tipos.includes(i.tipo));
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  const sec = document.getElementById('sec-dashboard');
+  sec.innerHTML = '<p style="color:var(--text3)">Carregando...</p>';
+  const d = await get('/api/dashboard/stats');
+  sec.innerHTML = `
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-label">Matérias-Primas</div><div class="kpi-val" style="color:var(--accent)">${d.total_mp}</div><div class="kpi-sub">itens cadastrados</div></div>
+    <div class="kpi"><div class="kpi-label">Embalagens/Insumos</div><div class="kpi-val" style="color:var(--purple)">${d.total_emb}</div><div class="kpi-sub">itens cadastrados</div></div>
+    <div class="kpi"><div class="kpi-label">Prod. Intermediários</div><div class="kpi-val" style="color:var(--yellow)">${d.total_pi}</div><div class="kpi-sub">itens cadastrados</div></div>
+    <div class="kpi"><div class="kpi-label">Produtos Acabados</div><div class="kpi-val" style="color:var(--green)">${d.total_pa}</div><div class="kpi-sub">itens cadastrados</div></div>
+    <div class="kpi"><div class="kpi-label">Estoque Baixo</div><div class="kpi-val" style="color:var(--yellow)">${d.itens_estoque_baixo}</div><div class="kpi-sub">itens em alerta</div></div>
+    <div class="kpi"><div class="kpi-label">Estoque Zerado</div><div class="kpi-val" style="color:var(--red)">${d.itens_estoque_zerado}</div><div class="kpi-sub">itens sem estoque</div></div>
+    <div class="kpi"><div class="kpi-label">Entradas no Mês</div><div class="kpi-val" style="color:var(--green)">${d.entradas_mes}</div><div class="kpi-sub">NFs registradas</div></div>
+    <div class="kpi"><div class="kpi-label">Produções no Mês</div><div class="kpi-val">${d.producoes_mes}</div><div class="kpi-sub">lançamentos</div></div>
+  </div>
+
+  ${d.alertas_estoque.length ? `
+  <div class="card" style="margin-bottom:16px">
+    <div style="font-weight:700;margin-bottom:12px;color:var(--yellow)">⚠️ Alertas de Estoque</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Item</th><th>Tipo</th><th>Família</th><th>Estoque Atual</th><th>Mínimo</th><th>%</th></tr></thead>
+      <tbody>
+        ${d.alertas_estoque.map(a => `<tr>
+          <td>${a.nome}</td><td>${tipoBadge(a.tipo)}</td>
+          <td>—</td>
+          <td style="color:${a.estoque_atual <= 0 ? 'var(--red)' : 'var(--yellow)'}">${fmt(a.estoque_atual)} ${a.unidade}</td>
+          <td>${fmt(a.estoque_minimo)} ${a.unidade}</td>
+          <td><span style="color:${a.percentual < 50 ? 'var(--red)' : 'var(--yellow)'}">${a.percentual}%</span></td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>
+  </div>` : ''}
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:12px">Status por Tipo</div>
+      <canvas id="chart-tipos" height="200"></canvas>
+    </div>
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:12px">Resumo Rápido</div>
+      <table class="consumo-table">
+        ${d.resumo_tipos.map(r => `
+        <tr><td style="padding:8px 0">${tipoBadge(r.tipo)}</td>
+        <td>${r.total} itens</td>
+        <td><span style="color:var(--green)">${r.ok} OK</span></td>
+        <td><span style="color:var(--yellow)">${r.alerta} alertas</span></td></tr>
+        `).join('')}
+      </table>
+    </div>
+  </div>`;
+
+  // Chart
+  new Chart(document.getElementById('chart-tipos'), {
+    type: 'doughnut',
+    data: {
+      labels: d.resumo_tipos.map(r => r.tipo),
+      datasets: [{ data: d.resumo_tipos.map(r => r.total), backgroundColor: ['#3b82f6','#8b5cf6','#f59e0b','#10b981'], borderWidth: 0 }]
+    },
+    options: { plugins: { legend: { labels: { color: '#f1f5f9' } } } }
+  });
+}
+
+// ─── ITENS ────────────────────────────────────────────────────────────────────
+let itensFiltro = { tipo: '', familia_id: '', search: '' };
+
+async function loadItens() {
+  const sec = document.getElementById('sec-itens');
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn-primary btn-sm" onclick="modalNovoItem()">+ Novo Item</button>`;
+
+  const tabs = ['', 'MP', 'EMB', 'PI', 'PA'];
+  const tabLabels = ['Todos', 'Matéria-Prima', 'Embalagens', 'Prod. Intermediário', 'Prod. Acabado'];
+
+  sec.innerHTML = `
+  <div class="tabs">
+    ${tabs.map((t,i) => `<div class="tab ${itensFiltro.tipo===t?'active':''}" onclick="filtrarItens('${t}')">${tabLabels[i]}</div>`).join('')}
+  </div>
+  <div class="toolbar">
+    <input placeholder="Buscar por nome ou código..." id="itens-search" value="${itensFiltro.search}" oninput="itensFiltro.search=this.value;renderItensTable()">
+    <select id="itens-familia" onchange="itensFiltro.familia_id=this.value;renderItensTable()">
+      <option value="">Todas as famílias</option>
+      ${S.familias.map(f => `<option value="${f.id}" ${itensFiltro.familia_id==f.id?'selected':''}>${f.nome}</option>`).join('')}
+    </select>
+  </div>
+  <div class="card">
+    <div class="table-wrap"><table>
+      <thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Família</th><th>Unid.</th><th>Estoque</th><th>Mínimo</th><th>Status</th><th></th></tr></thead>
+      <tbody id="itens-tbody"></tbody>
+    </table></div>
+  </div>`;
+
+  await refreshItens();
+}
+
+async function refreshItens() {
+  const params = { apenas_ativos: true };
+  if (itensFiltro.tipo) params.tipo = itensFiltro.tipo;
+  if (itensFiltro.familia_id) params.familia_id = itensFiltro.familia_id;
+  S.itens = await get('/api/itens/', params);
+  renderItensTable();
+}
+
+function filtrarItens(tipo) {
+  itensFiltro.tipo = tipo;
+  document.querySelectorAll('#sec-itens .tab').forEach((t,i) => {
+    t.classList.toggle('active', ['','MP','EMB','PI','PA'][i] === tipo);
+  });
+  renderItensTable();
+}
+
+function renderItensTable() {
+  const s = itensFiltro.search.toLowerCase();
+  const fam = itensFiltro.familia_id;
+  const rows = S.itens.filter(i =>
+    (!s || i.nome.toLowerCase().includes(s) || i.codigo.toLowerCase().includes(s)) &&
+    (!fam || String(i.familia_id) === String(fam))
+  );
+  document.getElementById('itens-tbody').innerHTML = rows.map(item => `
+    <tr>
+      <td style="font-family:monospace;font-size:12px">${item.codigo}</td>
+      <td>${item.nome}</td>
+      <td>${tipoBadge(item.tipo)}</td>
+      <td>${familiaBadge(item)}</td>
+      <td>${item.unidade}</td>
+      <td><b>${fmt(item.estoque_atual)}</b> ${item.unidade}</td>
+      <td>${item.estoque_minimo > 0 ? fmt(item.estoque_minimo) : '—'}</td>
+      <td>${statusBadge(item.status_estoque)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn-ghost btn-sm" onclick="verLotesItem(${item.id},'${item.nome.replace(/'/g,'\\'')}')">🗂️ Lotes</button>
+        <button class="btn-ghost btn-sm" onclick="modalEditarItem(${item.id})">✏️</button>
+        <button class="btn-danger btn-sm" onclick="deletarItem(${item.id})">🗑️</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">Nenhum item encontrado</td></tr>';
+}
+
+async function verLotesItem(itemId, nome) {
+  const lotes = await get(`/api/itens/${itemId}/lotes`);
+  const rows = lotes.length ? lotes.map(l => `
+    <tr>
+      <td style="font-family:monospace">${l.codigo_lote}</td>
+      <td>${l.familia_nome || '—'}</td>
+      <td>${fmtDate(l.data_entrada)}</td>
+      <td>${l.validade ? fmtDate(l.validade) : '—'}</td>
+      <td><b>${fmt(l.quantidade_atual)}</b></td>
+    </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text3)">Nenhum lote disponível</td></tr>';
+
+  openModal(`<div class="modal">
+    <h2>🗂️ Lotes — ${nome}</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Código Lote</th><th>Família</th><th>Entrada</th><th>Validade</th><th>Qtd. Atual</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Fechar</button></div>
+  </div>`);
+}
+
+function buildReceitaEditor(receita = [], tipo) {
+  if (!['PI','PA'].includes(tipo)) return '';
+  const componentes = tipo === 'PI' ? itensByTipo(['MP']) : itensByTipo(['MP','EMB','PI']);
+  const optsComp = componentes.map(i => `<option value="${i.id}">${i.nome} (${i.tipo})</option>`).join('');
+
+  return `
+  <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:8px">
+    <div style="font-weight:700;margin-bottom:10px">Receita / Composição</div>
+    <div id="receita-rows">
+      ${receita.map((r,i) => `
+        <div class="receita-row" id="receita-row-${i}">
+          <select onchange="" style="flex:1"><option value="">Selecione componente</option>${componentes.map(c => `<option value="${c.id}" ${c.id==r.item_filho_id?'selected':''}>${c.nome} (${c.tipo})</option>`).join('')}</select>
+          <input type="number" step="0.000001" value="${r.quantidade}" placeholder="Qtd/un" style="width:110px">
+          <button class="btn-danger btn-sm" onclick="removerReceitaRow(this)">✕</button>
+        </div>`).join('')}
+    </div>
+    <button class="btn-ghost btn-sm" onclick="addReceitaRow()">+ Adicionar componente</button>
+    <p style="font-size:11px;color:var(--text3);margin-top:6px">Quantidade por <b>1 unidade</b> do produto (${tipo === 'PA' ? 'por fardo/lote' : 'por kg produzido'})</p>
+  </div>`;
+}
+
+window.addReceitaRow = function() {
+  const tipo = document.getElementById('item-tipo')?.value || 'PI';
+  const componentes = tipo === 'PI' ? itensByTipo(['MP']) : itensByTipo(['MP','EMB','PI']);
+  const i = Date.now();
+  const row = document.createElement('div');
+  row.className = 'receita-row';
+  row.id = `receita-row-${i}`;
+  row.innerHTML = `
+    <select style="flex:1"><option value="">Selecione componente</option>${componentes.map(c => `<option value="${c.id}">${c.nome} (${c.tipo})</option>`).join('')}</select>
+    <input type="number" step="0.000001" placeholder="Qtd/un" style="width:110px">
+    <button class="btn-danger btn-sm" onclick="removerReceitaRow(this)">✕</button>`;
+  document.getElementById('receita-rows').appendChild(row);
+};
+
+window.removerReceitaRow = function(btn) { btn.closest('.receita-row').remove(); };
+
+function coletarReceita() {
+  const rows = document.querySelectorAll('#receita-rows .receita-row');
+  const receita = [];
+  rows.forEach(r => {
+    const sel = r.querySelector('select').value;
+    const qtd = parseFloat(r.querySelector('input').value);
+    if (sel && qtd > 0) receita.push({ item_filho_id: parseInt(sel), quantidade: qtd });
+  });
+  return receita;
+}
+
+async function modalNovoItem() {
+  const famOp = `<option value="">Sem família</option>` + famOpts();
+  openModal(`<div class="modal">
+    <h2>+ Novo Item</h2>
+    <div class="form-row">
+      <div class="form-group"><label>Código *</label><input id="item-codigo" placeholder="Ex: 8010016"></div>
+      <div class="form-group"><label>Tipo *</label>
+        <select id="item-tipo" onchange="receitaEditorUpdate()">
+          <option value="MP">Matéria-Prima (MP)</option>
+          <option value="EMB">Embalagem / Insumo (EMB)</option>
+          <option value="PI">Prod. Intermediário (PI)</option>
+          <option value="PA">Produto Acabado (PA)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row full"><div class="form-group"><label>Nome *</label><input id="item-nome" placeholder="Nome completo do item"></div></div>
+    <div class="form-row">
+      <div class="form-group"><label>Unidade</label><input id="item-unidade" value="Kg" placeholder="Kg / UND / L / FARDO"></div>
+      <div class="form-group"><label>Família</label><select id="item-familia">${famOp}</select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Estoque Mínimo</label><input type="number" id="item-minimo" value="0" step="0.01"></div>
+      <div class="form-group"><label>Observações</label><input id="item-obs" placeholder="Opcional"></div>
+    </div>
+    <div id="receita-editor"></div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="salvarNovoItem()">Salvar</button>
+    </div>
+  </div>`, () => refreshItens());
+
+  window.receitaEditorUpdate = function() {
+    const tipo = document.getElementById('item-tipo').value;
+    document.getElementById('receita-editor').innerHTML = buildReceitaEditor([], tipo);
+  };
+}
+
+async function salvarNovoItem() {
+  const tipo = document.getElementById('item-tipo').value;
+  const body = {
+    codigo: document.getElementById('item-codigo').value.trim(),
+    nome: document.getElementById('item-nome').value.trim(),
+    tipo, unidade: document.getElementById('item-unidade').value.trim() || 'Kg',
+    familia_id: document.getElementById('item-familia').value || null,
+    estoque_minimo: parseFloat(document.getElementById('item-minimo').value) || 0,
+    observacoes: document.getElementById('item-obs').value || null,
+  };
+  if (!body.codigo || !body.nome) return toast('Código e nome são obrigatórios', 'error');
+  if (['PI','PA'].includes(tipo)) body.receita = coletarReceita();
+  try {
+    await post('/api/itens/', body);
+    toast('Item cadastrado com sucesso!', 'success');
+    closeModal();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function modalEditarItem(itemId) {
+  const item = await get(`/api/itens/${itemId}`);
+  const famOp = `<option value="">Sem família</option>` + famOpts(item.familia_id);
+  openModal(`<div class="modal">
+    <h2>✏️ Editar Item</h2>
+    <div class="form-row">
+      <div class="form-group"><label>Código</label><input id="item-codigo" value="${item.codigo}"></div>
+      <div class="form-group"><label>Tipo</label><input value="${item.tipo}" disabled style="opacity:.5"></div>
+    </div>
+    <div class="form-row full"><div class="form-group"><label>Nome *</label><input id="item-nome" value="${item.nome}"></div></div>
+    <div class="form-row">
+      <div class="form-group"><label>Unidade</label><input id="item-unidade" value="${item.unidade}"></div>
+      <div class="form-group"><label>Família</label><select id="item-familia">${famOp}</select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Estoque Mínimo</label><input type="number" id="item-minimo" value="${item.estoque_minimo}" step="0.01"></div>
+      <div class="form-group"><label>Observações</label><input id="item-obs" value="${item.observacoes||''}"></div>
+    </div>
+    ${['PI','PA'].includes(item.tipo) ? `<div id="receita-editor">${buildReceitaEditor(item.receita||[], item.tipo)}</div>` : ''}
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="salvarEdicaoItem(${itemId},'${item.tipo}')">Salvar</button>
+    </div>
+  </div>`, () => refreshItens());
+}
+
+async function salvarEdicaoItem(id, tipo) {
+  const body = {
+    codigo: document.getElementById('item-codigo').value.trim(),
+    nome: document.getElementById('item-nome').value.trim(),
+    unidade: document.getElementById('item-unidade').value.trim(),
+    familia_id: document.getElementById('item-familia').value || null,
+    estoque_minimo: parseFloat(document.getElementById('item-minimo').value) || 0,
+    observacoes: document.getElementById('item-obs').value || null,
+  };
+  if (['PI','PA'].includes(tipo)) body.receita = coletarReceita();
+  try {
+    await put(`/api/itens/${id}`, body);
+    toast('Item atualizado!', 'success');
+    closeModal();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function deletarItem(id) {
+  if (!confirm('Desativar este item?')) return;
+  try { await del(`/api/itens/${id}`); toast('Item desativado', 'info'); refreshItens(); }
+  catch(e) { toast(e.message, 'error'); }
+}
+
+// ─── FAMÍLIAS ─────────────────────────────────────────────────────────────────
+async function loadFamilias() {
+  const sec = document.getElementById('sec-familias');
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn-primary btn-sm" onclick="modalNovaFamilia()">+ Nova Família</button>`;
+  sec.innerHTML = '<p style="color:var(--text3)">Carregando...</p>';
+  S.familias = await get('/api/familias/');
+  sec.innerHTML = `<div class="card"><div class="table-wrap"><table>
+    <thead><tr><th>Cor</th><th>Nome</th><th>Descrição</th><th></th></tr></thead>
+    <tbody>
+      ${S.familias.map(f => `<tr>
+        <td><div style="width:20px;height:20px;border-radius:50%;background:${f.cor}"></div></td>
+        <td><b>${f.nome}</b></td>
+        <td>${f.descricao || '—'}</td>
+        <td>
+          <button class="btn-ghost btn-sm" onclick="modalEditarFamilia(${f.id},'${f.nome.replace(/'/g,"\\'")}','${f.descricao||''}','${f.cor}')">✏️</button>
+          <button class="btn-danger btn-sm" onclick="deletarFamilia(${f.id})">🗑️</button>
+        </td>
+      </tr>`).join('')}
+    </tbody>
+  </table></div></div>`;
+}
+
+function modalNovaFamilia() {
+  openModal(`<div class="modal" style="max-width:420px">
+    <h2>+ Nova Família</h2>
+    <div class="form-group" style="margin-bottom:12px"><label>Nome *</label><input id="fam-nome" placeholder="Ex: Casa KM"></div>
+    <div class="form-group" style="margin-bottom:12px"><label>Descrição</label><input id="fam-desc" placeholder="Opcional"></div>
+    <div class="form-group" style="margin-bottom:12px"><label>Cor</label><input type="color" id="fam-cor" value="#3B82F6" style="height:38px;padding:4px"></div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="salvarFamilia()">Salvar</button>
+    </div>
+  </div>`, loadFamilias);
+}
+
+async function salvarFamilia() {
+  const body = { nome: document.getElementById('fam-nome').value.trim(), descricao: document.getElementById('fam-desc').value, cor: document.getElementById('fam-cor').value };
+  if (!body.nome) return toast('Nome obrigatório', 'error');
+  try { await post('/api/familias/', body); toast('Família criada!', 'success'); closeModal(); }
+  catch(e) { toast(e.message, 'error'); }
+}
+
+function modalEditarFamilia(id, nome, desc, cor) {
+  openModal(`<div class="modal" style="max-width:420px">
+    <h2>✏️ Editar Família</h2>
+    <div class="form-group" style="margin-bottom:12px"><label>Nome *</label><input id="fam-nome" value="${nome}"></div>
+    <div class="form-group" style="margin-bottom:12px"><label>Descrição</label><input id="fam-desc" value="${desc}"></div>
+    <div class="form-group" style="margin-bottom:12px"><label>Cor</label><input type="color" id="fam-cor" value="${cor}" style="height:38px;padding:4px"></div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="salvarEdicaoFamilia(${id})">Salvar</button>
+    </div>
+  </div>`, loadFamilias);
+}
+
+async function salvarEdicaoFamilia(id) {
+  const body = { nome: document.getElementById('fam-nome').value.trim(), descricao: document.getElementById('fam-desc').value, cor: document.getElementById('fam-cor').value };
+  try { await put(`/api/familias/${id}`, body); toast('Família atualizada!', 'success'); closeModal(); }
+  catch(e) { toast(e.message, 'error'); }
+}
+
+async function deletarFamilia(id) {
+  if (!confirm('Desativar esta família?')) return;
+  try { await del(`/api/familias/${id}`); toast('Família desativada', 'info'); loadFamilias(); }
+  catch(e) { toast(e.message, 'error'); }
+}
+
+// ─── ENTRADAS NF ──────────────────────────────────────────────────────────────
+async function loadEntradas() {
+  const sec = document.getElementById('sec-entradas');
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn-primary btn-sm" onclick="modalNovaEntrada()">+ Registrar Entrada NF</button>`;
+  sec.innerHTML = '<p style="color:var(--text3)">Carregando...</p>';
+  const entradas = await get('/api/entradas/', { limit: 50 });
+  renderEntradasTable(entradas, sec);
+}
+
+function renderEntradasTable(entradas, sec) {
+  sec.innerHTML = `
+  <div class="toolbar">
+    <input placeholder="Buscar NF ou fornecedor..." id="ent-search" oninput="filtrarEntradas(this.value)">
+  </div>
+  <div class="card" id="entradas-card"><div class="table-wrap"><table>
+    <thead><tr><th>Data</th><th>NF</th><th>Fornecedor</th><th>Família</th><th>Itens</th><th>Obs</th><th></th></tr></thead>
+    <tbody>
+      ${entradas.map(e => `<tr>
+        <td>${fmtDate(e.data_entrada)}</td>
+        <td style="font-family:monospace"><b>${e.numero_nf}</b></td>
+        <td>${e.fornecedor}</td>
+        <td>${e.familia_nome ? `<span class="chip" style="background:#3b82f622;color:#3b82f6">${e.familia_nome}</span>` : '—'}</td>
+        <td>${e.itens?.length || 0} ${e.itens?.length===1?'item':'itens'}</td>
+        <td style="font-size:12px;color:var(--text3)">${e.observacoes||'—'}</td>
+        <td>
+          <button class="btn-ghost btn-sm" onclick="verDetalheEntrada(${e.id})">Ver</button>
+          <button class="btn-danger btn-sm" onclick="estornarEntrada(${e.id})">Estornar</button>
+        </td>
+      </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Nenhuma entrada registrada</td></tr>'}
+    </tbody>
+  </table></div></div>`;
+  window._entradasAll = entradas;
+}
+
+window.filtrarEntradas = function(v) {
+  const f = v.toLowerCase();
+  const filtered = (window._entradasAll||[]).filter(e => e.numero_nf.toLowerCase().includes(f) || e.fornecedor.toLowerCase().includes(f));
+  // re-render tbody only
+  document.querySelector('#entradas-card tbody').innerHTML = filtered.map(e => `<tr>
+    <td>${fmtDate(e.data_entrada)}</td>
+    <td style="font-family:monospace"><b>${e.numero_nf}</b></td>
+    <td>${e.fornecedor}</td>
+    <td>${e.familia_nome||'—'}</td>
+    <td>${e.itens?.length||0} itens</td>
+    <td style="font-size:12px;color:var(--text3)">${e.observacoes||'—'}</td>
+    <td><button class="btn-ghost btn-sm" onclick="verDetalheEntrada(${e.id})">Ver</button>
+    <button class="btn-danger btn-sm" onclick="estornarEntrada(${e.id})">Estornar</button></td>
+  </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Nenhum resultado</td></tr>';
+};
+
+async function verDetalheEntrada(id) {
+  const e = await get(`/api/entradas/${id}`);
+  openModal(`<div class="modal">
+    <h2>📥 NF ${e.numero_nf}</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;font-size:13px">
+      <div><span style="color:var(--text3)">Fornecedor</span><br><b>${e.fornecedor}</b></div>
+      <div><span style="color:var(--text3)">Data</span><br><b>${fmtDate(e.data_entrada)}</b></div>
+      <div><span style="color:var(--text3)">Família</span><br><b>${e.familia_nome||'—'}</b></div>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Código</th><th>Item</th><th>Lote</th><th>Validade</th><th>Quantidade</th></tr></thead>
+      <tbody>
+        ${e.itens.map(i => `<tr>
+          <td style="font-family:monospace;font-size:12px">${i.item_codigo||'—'}</td>
+          <td>${i.item_nome}</td>
+          <td style="font-family:monospace;font-size:12px">${i.lote_codigo||'—'}</td>
+          <td>${i.validade ? fmtDate(i.validade) : '—'}</td>
+          <td><b>${fmt(i.quantidade)}</b></td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>
+    <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Fechar</button></div>
+  </div>`);
+}
+
+async function estornarEntrada(id) {
+  if (!confirm('Estornar esta entrada? Esta ação irá reverter os lotes.')) return;
+  try { await del(`/api/entradas/${id}`); toast('Entrada estornada!', 'info'); loadEntradas(); }
+  catch(e) { toast(e.message, 'error'); }
+}
+
+function modalNovaEntrada() {
+  const mpEmb = itensByTipo(['MP','EMB']);
+  const optsItens = mpEmb.map(i => `<option value="${i.id}">[${i.tipo}] ${i.nome} (${i.familia_nome||'—'})</option>`).join('');
+
+  openModal(`<div class="modal" style="max-width:720px">
+    <h2>📥 Registrar Entrada de NF</h2>
+    <div class="form-row">
+      <div class="form-group"><label>Número da NF *</label><input id="nf-numero" placeholder="Ex: 90029"></div>
+      <div class="form-group"><label>Fornecedor *</label><input id="nf-fornecedor" placeholder="Nome do fornecedor"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Data de Entrada *</label><input type="date" id="nf-data" value="${new Date().toISOString().split('T')[0]}"></div>
+      <div class="form-group"><label>Família padrão</label><select id="nf-familia"><option value="">Sem família</option>${famOpts()}</select></div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px"><label>Observações</label><input id="nf-obs" placeholder="Opcional"></div>
+
+    <div style="font-weight:700;margin:16px 0 8px">Itens da NF</div>
+    <div id="nf-itens">
+      <div class="nf-item-row" style="display:flex;gap:8px;margin-bottom:8px;align-items:flex-end">
+        <div style="flex:2"><label style="font-size:12px;color:var(--text2)">Item (MP/EMB)</label><select>${optsItens}</select></div>
+        <div style="width:100px"><label style="font-size:12px;color:var(--text2)">Quantidade</label><input type="number" step="0.001" placeholder="0"></div>
+        <div style="width:130px"><label style="font-size:12px;color:var(--text2)">Código Lote</label><input placeholder="Auto"></div>
+        <div style="width:130px"><label style="font-size:12px;color:var(--text2)">Validade</label><input type="date"></div>
+        <button class="btn-danger btn-sm" style="margin-bottom:1px" onclick="remNFRow(this)">✕</button>
+      </div>
+    </div>
+    <button class="btn-ghost btn-sm" onclick="addNFRow()">+ Adicionar Item</button>
+
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="salvarEntrada()">Registrar Entrada</button>
+    </div>
+  </div>`, loadEntradas);
+
+  window.addNFRow = function() {
+    const row = document.createElement('div');
+    row.className = 'nf-item-row';
+    row.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:flex-end';
+    row.innerHTML = `
+      <div style="flex:2"><select>${optsItens}</select></div>
+      <div style="width:100px"><input type="number" step="0.001" placeholder="0"></div>
+      <div style="width:130px"><input placeholder="Auto"></div>
+      <div style="width:130px"><input type="date"></div>
+      <button class="btn-danger btn-sm" style="margin-bottom:1px" onclick="remNFRow(this)">✕</button>`;
+    document.getElementById('nf-itens').appendChild(row);
+  };
+  window.remNFRow = function(btn) {
+    if (document.querySelectorAll('.nf-item-row').length > 1) btn.closest('.nf-item-row').remove();
+  };
+}
+
+async function salvarEntrada() {
+  const numero_nf = document.getElementById('nf-numero').value.trim();
+  const fornecedor = document.getElementById('nf-fornecedor').value.trim();
+  const data_entrada = document.getElementById('nf-data').value;
+  const familia_id = document.getElementById('nf-familia').value || null;
+  if (!numero_nf || !fornecedor || !data_entrada) return toast('Preencha NF, fornecedor e data', 'error');
+
+  const rows = document.querySelectorAll('.nf-item-row');
+  const itens = [];
+  for (const row of rows) {
+    const inputs = row.querySelectorAll('input');
+    const sel = row.querySelector('select');
+    const item_id = parseInt(sel.value);
+    const qtd = parseFloat(inputs[0].value);
+    const lote_codigo = inputs[1].value.trim() || null;
+    const validade = inputs[2].value || null;
+    if (!item_id || !qtd || qtd <= 0) continue;
+    itens.push({ item_id, quantidade: qtd, lote_codigo, validade });
+  }
+  if (!itens.length) return toast('Adicione pelo menos um item com quantidade', 'error');
+
+  try {
+    await post('/api/entradas/', { numero_nf, fornecedor, data_entrada, familia_id, itens });
+    toast('Entrada registrada com sucesso!', 'success');
+    closeModal();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ─── PRODUÇÃO ─────────────────────────────────────────────────────────────────
+async function loadProducao() {
+  const sec = document.getElementById('sec-producao');
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn-primary btn-sm" onclick="modalNovaProducao()">+ Lançar Produção</button>`;
+  sec.innerHTML = '<p style="color:var(--text3)">Carregando...</p>';
+  const lancamentos = await get('/api/producao/', { limit: 60 });
+  renderProducaoTable(lancamentos, sec);
+}
+
+function renderProducaoTable(lancamentos, sec) {
+  const tabs = ['', 'PI', 'PA'];
+  const tabLabels = ['Todos', 'Prod. Intermediário (PI)', 'Produto Acabado (PA)'];
+  window._lancAll = lancamentos;
+  window._lancFiltro = window._lancFiltro || '';
+
+  sec.innerHTML = `
+  <div class="tabs">
+    ${tabs.map((t,i) => `<div class="tab ${window._lancFiltro===t?'active':''}" onclick="filtrarLanc('${t}')">${tabLabels[i]}</div>`).join('')}
+  </div>
+  <div class="card"><div class="table-wrap"><table>
+    <thead><tr><th>Data</th><th>Turno</th><th>Item</th><th>Tipo</th><th>Família</th><th>Quantidade</th><th>Componentes</th><th></th></tr></thead>
+    <tbody id="lanc-tbody"></tbody>
+  </table></div></div>`;
+
+  renderLancTbody();
+}
+
+window.filtrarLanc = function(t) {
+  window._lancFiltro = t;
+  document.querySelectorAll('#sec-producao .tab').forEach((tab, i) => {
+    tab.classList.toggle('active', ['','PI','PA'][i] === t);
+  });
+  renderLancTbody();
+};
+
+function renderLancTbody() {
+  const all = window._lancAll || [];
+  const f = window._lancFiltro || '';
+  const rows = all.filter(l => !f || l.item_tipo === f);
+  document.getElementById('lanc-tbody').innerHTML = rows.map(l => `<tr>
+    <td>${fmtDate(l.data_producao)}</td>
+    <td>${l.turno||'—'}</td>
+    <td><b>${l.item_nome}</b></td>
+    <td>${tipoBadge(l.item_tipo||'')}</td>
+    <td>${l.familia_nome||'—'}</td>
+    <td><b>${fmt(l.quantidade)}</b></td>
+    <td style="font-size:12px;color:var(--text3)">${l.consumos?.map(c=>`${c.item_nome}: ${fmt(c.quantidade)}`).join(' | ').substring(0,80)||'—'}</td>
+    <td><button class="btn-danger btn-sm" onclick="estornarLanc(${l.id})">Estornar</button></td>
+  </tr>`).join('') || '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Nenhum lançamento</td></tr>';
+}
+
+async function estornarLanc(id) {
+  if (!confirm('Estornar este lançamento? O estoque dos componentes será restaurado.')) return;
+  try { await del(`/api/producao/${id}`); toast('Lançamento estornado!', 'info'); loadProducao(); }
+  catch(e) { toast(e.message, 'error'); }
+}
+
+async function modalNovaProducao() {
+  const piPa = itensByTipo(['PI','PA']);
+  const opts = piPa.map(i => `<option value="${i.id}">[${i.tipo}] ${i.nome}</option>`).join('');
+
+  openModal(`<div class="modal">
+    <h2>⚙️ Lançar Produção</h2>
+    <div class="form-row">
+      <div class="form-group"><label>Item a produzir (PI/PA) *</label>
+        <select id="prod-item" onchange="carregarPreviewProducao()">
+          <option value="">Selecione...</option>${opts}
+        </select>
+      </div>
+      <div class="form-group"><label>Quantidade *</label>
+        <input type="number" id="prod-qtd" step="0.001" placeholder="Ex: 500" oninput="debouncePreview()">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Data de Produção *</label>
+        <input type="date" id="prod-data" value="${new Date().toISOString().split('T')[0]}">
+      </div>
+      <div class="form-group"><label>Turno</label>
+        <select id="prod-turno">
+          <option value="">— Sem turno —</option>
+          <option value="Turno 1">Turno 1</option>
+          <option value="Turno 2">Turno 2</option>
+          <option value="Turno 3">Turno 3</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Família</label><select id="prod-familia"><option value="">Automático</option>${famOpts()}</select></div>
+      <div class="form-group"><label>Código do Lote (opcional)</label><input id="prod-lote" placeholder="Gerado automaticamente"></div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px"><label>Observações</label><input id="prod-obs" placeholder="Opcional"></div>
+
+    <div id="prod-preview" style="margin-top:16px"></div>
+
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" id="btn-prod-salvar" onclick="salvarProducao()">Registrar Produção</button>
+    </div>
+  </div>`, loadProducao);
+
+  let debounceTimer;
+  window.debouncePreview = function() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(carregarPreviewProducao, 500);
+  };
+
+  window.carregarPreviewProducao = async function() {
+    const item_id = document.getElementById('prod-item').value;
+    const qtd = parseFloat(document.getElementById('prod-qtd').value);
+    if (!item_id || !qtd || qtd <= 0) return;
+    const preview = document.getElementById('prod-preview');
+    preview.innerHTML = '<p style="color:var(--text3);font-size:13px">Calculando consumo...</p>';
+    try {
+      const p = await get('/api/producao/preview', { item_id, quantidade: qtd });
+      const alertClass = p.pode_produzir ? 'alert-warn' : 'alert-danger';
+      const alertMsg = p.pode_produzir ? '✅ Estoque suficiente — pode produzir' : '❌ Estoque insuficiente para produzir';
+
+      preview.innerHTML = `
+        <div class="alert ${alertClass}" style="margin-bottom:12px">${alertMsg}</div>
+        <div style="font-weight:700;font-size:13px;margin-bottom:8px">Consumo previsto:</div>
+        ${p.consumo.map(c => `
+          <div class="consumo-row ${c.suficiente?'ok':'fail'}">
+            <span>${tipoBadge(c.item_tipo)} ${c.item_nome}</span>
+            <span style="font-family:monospace;font-size:12px">
+              ${fmt(c.quantidade_necessaria)} ${c.unidade}
+              <span style="color:var(--text3);margin-left:8px">→ saldo: <b style="color:${c.saldo_apos<0?'var(--red)':'var(--green)'}">${fmt(c.saldo_apos)}</b></span>
+            </span>
+          </div>`).join('')}`;
+      document.getElementById('btn-prod-salvar').disabled = !p.pode_produzir;
+      document.getElementById('btn-prod-salvar').style.opacity = p.pode_produzir ? '1' : '0.4';
+    } catch(e) {
+      preview.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+  };
+}
+
+async function salvarProducao() {
+  const body = {
+    item_id: parseInt(document.getElementById('prod-item').value),
+    quantidade: parseFloat(document.getElementById('prod-qtd').value),
+    data_producao: document.getElementById('prod-data').value,
+    turno: document.getElementById('prod-turno').value || null,
+    familia_id: document.getElementById('prod-familia').value || null,
+    lote_codigo: document.getElementById('prod-lote').value || null,
+    observacoes: document.getElementById('prod-obs').value || null,
+  };
+  if (!body.item_id || !body.quantidade || !body.data_producao)
+    return toast('Preencha item, quantidade e data', 'error');
+  try {
+    const r = await post('/api/producao/', body);
+    toast(`Produção registrada! Lote: ${r.lote_gerado}`, 'success');
+    closeModal();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ─── EXTRATO ──────────────────────────────────────────────────────────────────
+async function loadExtrato() {
+  const sec = document.getElementById('sec-extrato');
+  sec.innerHTML = `
+  <div class="toolbar">
+    <select id="ext-tipo" onchange="buscarExtrato()">
+      <option value="">Todos os tipos</option>
+      <option>ENTRADA_NF</option><option>PRODUCAO_PI</option>
+      <option>PRODUCAO_PA</option><option>SAIDA_MANUAL</option><option>AJUSTE</option>
+    </select>
+    <select id="ext-familia" onchange="buscarExtrato()">
+      <option value="">Todas famílias</option>
+      ${S.familias.map(f => `<option value="${f.id}">${f.nome}</option>`).join('')}
+    </select>
+    <input type="date" id="ext-di" onchange="buscarExtrato()">
+    <input type="date" id="ext-df" onchange="buscarExtrato()">
+    <button class="btn-ghost btn-sm" onclick="buscarExtrato()">Filtrar</button>
+  </div>
+  <div class="card" id="extrato-card">
+    <p style="color:var(--text3);text-align:center;padding:24px">Selecione filtros e clique em Filtrar, ou aguarde...</p>
+  </div>`;
+  buscarExtrato();
+}
+
+async function buscarExtrato() {
+  const params = {};
+  const tipo = document.getElementById('ext-tipo')?.value;
+  const fam = document.getElementById('ext-familia')?.value;
+  const di = document.getElementById('ext-di')?.value;
+  const df = document.getElementById('ext-df')?.value;
+  if (tipo) params.tipo = tipo;
+  if (fam) params.familia_id = fam;
+  if (di) params.data_inicio = di;
+  if (df) params.data_fim = df;
+  params.limit = 100;
+
+  const movs = await get('/api/movimentacoes/', params);
+  const card = document.getElementById('extrato-card');
+
+  const tipoColor = { ENTRADA_NF: 'var(--green)', PRODUCAO_PI: 'var(--yellow)', PRODUCAO_PA: 'var(--accent)', SAIDA_MANUAL: 'var(--red)', AJUSTE: 'var(--text2)' };
+
+  card.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr><th>Data/Hora</th><th>Tipo</th><th>Item</th><th>Família</th><th>Lote</th><th>Qtd</th><th>Saldo Após</th><th>Obs.</th></tr></thead>
+    <tbody>
+      ${movs.map(m => `<tr>
+        <td style="font-size:12px;white-space:nowrap">${new Date(m.created_at).toLocaleString('pt-BR')}</td>
+        <td><span style="font-size:11px;font-weight:700;color:${tipoColor[m.tipo]||'var(--text2)'}">${m.tipo}</span></td>
+        <td>${tipoBadge(m.item_tipo||'')} ${m.item_nome||m.item_id}</td>
+        <td>${m.familia_nome||'—'}</td>
+        <td style="font-family:monospace;font-size:11px">${m.lote_codigo||'—'}</td>
+        <td style="color:${m.quantidade>=0?'var(--green)':'var(--red)'};font-weight:700">${m.quantidade>=0?'+':''}${fmt(m.quantidade)}</td>
+        <td style="font-family:monospace">${fmt(m.saldo_apos)}</td>
+        <td style="font-size:11px;color:var(--text3);max-width:200px;overflow:hidden;text-overflow:ellipsis">${m.observacoes||'—'}</td>
+      </tr>`).join('') || '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Nenhuma movimentação</td></tr>'}
+    </tbody>
+  </table></div>`;
+}
+
+// ─── USUÁRIOS ─────────────────────────────────────────────────────────────────
+async function loadUsuarios() {
+  const sec = document.getElementById('sec-usuarios');
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn-primary btn-sm" onclick="modalNovoUser()">+ Novo Usuário</button>`;
+  const users = await get('/api/users/');
+  sec.innerHTML = `<div class="card"><div class="table-wrap"><table>
+    <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Cargo</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      ${users.map(u => `<tr>
+        <td><b>${u.nome}</b></td>
+        <td>${u.email}</td>
+        <td><span class="badge ${u.role==='admin'?'badge-zerado':u.role==='gestor'?'badge-baixo':'badge-ok'}">${u.role}</span></td>
+        <td>${u.cargo||'—'}</td>
+        <td><span class="badge ${u.is_active?'badge-ok':'badge-zerado'}">${u.is_active?'Ativo':'Inativo'}</span></td>
+        <td>
+          <button class="btn-ghost btn-sm" onclick="modalEditarUser(${u.id},'${u.nome.replace(/'/g,"\\'")}','${u.email}','${u.role}','${u.cargo||''}','${u.telefone||''}','${u.matricula||''}')">✏️</button>
+          <button class="btn-danger btn-sm" onclick="desativarUser(${u.id})">🗑️</button>
+        </td>
+      </tr>`).join('')}
+    </tbody>
+  </table></div></div>`;
+}
+
+function modalNovoUser() {
+  openModal(`<div class="modal" style="max-width:480px">
+    <h2>+ Novo Usuário</h2>
+    <div class="form-row">
+      <div class="form-group"><label>Nome *</label><input id="u-nome" placeholder="Nome completo"></div>
+      <div class="form-group"><label>E-mail *</label><input id="u-email" type="email" placeholder="email@empresa.com"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Senha *</label><input id="u-pass" type="password" placeholder="Mínimo 6 caracteres"></div>
+      <div class="form-group"><label>Perfil</label>
+        <select id="u-role"><option value="tecnico">Operador</option><option value="gestor">Gestor</option><option value="admin">Administrador</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Cargo</label><input id="u-cargo" placeholder="Ex: Auxiliar de Estoque"></div>
+      <div class="form-group"><label>Matrícula</label><input id="u-mat" placeholder="Opcional"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="salvarNovoUser()">Salvar</button>
+    </div>
+  </div>`, loadUsuarios);
+}
+
+async function salvarNovoUser() {
+  const body = {
+    nome: document.getElementById('u-nome').value.trim(),
+    email: document.getElementById('u-email').value.trim(),
+    password: document.getElementById('u-pass').value,
+    role: document.getElementById('u-role').value,
+    cargo: document.getElementById('u-cargo').value || null,
+    matricula: document.getElementById('u-mat').value || null,
+  };
+  if (!body.nome || !body.email || !body.password) return toast('Preencha nome, e-mail e senha', 'error');
+  try { await post('/api/users/', body); toast('Usuário criado!', 'success'); closeModal(); }
+  catch(e) { toast(e.message, 'error'); }
+}
+
+function modalEditarUser(id, nome, email, role, cargo, tel, mat) {
+  openModal(`<div class="modal" style="max-width:480px">
+    <h2>✏️ Editar Usuário</h2>
+    <div class="form-row">
+      <div class="form-group"><label>Nome</label><input id="u-nome" value="${nome}"></div>
+      <div class="form-group"><label>E-mail</label><input id="u-email" value="${email}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Perfil</label>
+        <select id="u-role"><option value="tecnico" ${role==='tecnico'?'selected':''}>Operador</option><option value="gestor" ${role==='gestor'?'selected':''}>Gestor</option><option value="admin" ${role==='admin'?'selected':''}>Administrador</option></select>
+      </div>
+      <div class="form-group"><label>Cargo</label><input id="u-cargo" value="${cargo}"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="salvarEdicaoUser(${id})">Salvar</button>
+    </div>
+  </div>`, loadUsuarios);
+}
+
+async function salvarEdicaoUser(id) {
+  const body = { nome: document.getElementById('u-nome').value, email: document.getElementById('u-email').value, role: document.getElementById('u-role').value, cargo: document.getElementById('u-cargo').value };
+  try { await put(`/api/users/${id}`, body); toast('Usuário atualizado!', 'success'); closeModal(); }
+  catch(e) { toast(e.message, 'error'); }
+}
+
+async function desativarUser(id) {
+  if (!confirm('Desativar este usuário?')) return;
+  try { await del(`/api/users/${id}`); toast('Usuário desativado', 'info'); loadUsuarios(); }
+  catch(e) { toast(e.message, 'error'); }
+}
+</script>
+</body>
+</html>
