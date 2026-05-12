@@ -459,14 +459,15 @@ function renderItensTable() {
       <td>${item.estoque_minimo > 0 ? fmt(item.estoque_minimo) : '—'}</td>
       <td>${statusBadge(item.status_estoque)}</td>
       <td style="white-space:nowrap">
-        <button class="btn-ghost btn-sm" onclick="verLotesItem(${item.id},'${item.nome.replace(/'/g,'\\'')}')">🗂️ Lotes</button>
+        <button class="btn-ghost btn-sm" onclick="verLotesItem(${item.id},this.dataset.nome)" data-nome="${item.nome}">🗂️ Lotes</button>
         <button class="btn-ghost btn-sm" onclick="modalEditarItem(${item.id})">✏️</button>
         <button class="btn-danger btn-sm" onclick="deletarItem(${item.id})">🗑️</button>
       </td>
     </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">Nenhum item encontrado</td></tr>';
 }
 
-async function verLotesItem(itemId, nome) {
+async function verLotesItem(itemId, nomeOrEvent) {
+  const nome = typeof nomeOrEvent === 'string' ? nomeOrEvent : nomeOrEvent;
   const lotes = await get(`/api/itens/${itemId}/lotes`);
   const rows = lotes.length ? lotes.map(l => `
     <tr>
@@ -654,7 +655,7 @@ async function loadFamilias() {
         <td><b>${f.nome}</b></td>
         <td>${f.descricao || '—'}</td>
         <td>
-          <button class="btn-ghost btn-sm" onclick="modalEditarFamilia(${f.id},'${f.nome.replace(/'/g,"\\'")}','${f.descricao||''}','${f.cor}')">✏️</button>
+          <button class="btn-ghost btn-sm" onclick="modalEditarFamilia(${f.id})" data-nome="${f.nome}" data-desc="${f.descricao||''}" data-cor="${f.cor}">✏️</button>
           <button class="btn-danger btn-sm" onclick="deletarFamilia(${f.id})">🗑️</button>
         </td>
       </tr>`).join('')}
@@ -682,7 +683,11 @@ async function salvarFamilia() {
   catch(e) { toast(e.message, 'error'); }
 }
 
-function modalEditarFamilia(id, nome, desc, cor) {
+function modalEditarFamilia(id, nomeArg, descArg, corArg) {
+  const btn = event?.target?.closest('button');
+  const nome = btn ? btn.dataset.nome : nomeArg;
+  const desc = btn ? btn.dataset.desc : descArg;
+  const cor = btn ? btn.dataset.cor : corArg;
   openModal(`<div class="modal" style="max-width:420px">
     <h2>✏️ Editar Família</h2>
     <div class="form-group" style="margin-bottom:12px"><label>Nome *</label><input id="fam-nome" value="${nome}"></div>
@@ -1095,7 +1100,7 @@ async function loadUsuarios() {
         <td>${u.cargo||'—'}</td>
         <td><span class="badge ${u.is_active?'badge-ok':'badge-zerado'}">${u.is_active?'Ativo':'Inativo'}</span></td>
         <td>
-          <button class="btn-ghost btn-sm" onclick="modalEditarUser(${u.id},'${u.nome.replace(/'/g,"\\'")}','${u.email}','${u.role}','${u.cargo||''}','${u.telefone||''}','${u.matricula||''}')">✏️</button>
+          <button class="btn-ghost btn-sm" onclick="modalEditarUser(${u.id})" data-nome="${u.nome}" data-email="${u.email}" data-role="${u.role}" data-cargo="${u.cargo||''}" data-tel="${u.telefone||''}" data-mat="${u.matricula||''}">✏️</button>
           <button class="btn-danger btn-sm" onclick="desativarUser(${u.id})">🗑️</button>
         </td>
       </tr>`).join('')}
@@ -1141,7 +1146,12 @@ async function salvarNovoUser() {
   catch(e) { toast(e.message, 'error'); }
 }
 
-function modalEditarUser(id, nome, email, role, cargo, tel, mat) {
+function modalEditarUser(id, nomeArg, emailArg, roleArg, cargoArg, telArg, matArg) {
+  const btn = event?.target?.closest('button');
+  const nome = btn ? btn.dataset.nome : nomeArg;
+  const email = btn ? btn.dataset.email : emailArg;
+  const role = btn ? btn.dataset.role : roleArg;
+  const cargo = btn ? btn.dataset.cargo : cargoArg;
   openModal(`<div class="modal" style="max-width:480px">
     <h2>✏️ Editar Usuário</h2>
     <div class="form-row">
