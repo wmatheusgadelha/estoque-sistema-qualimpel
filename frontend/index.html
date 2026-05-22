@@ -200,7 +200,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
 <script>
 // ─── STATE ────────────────────────────────────────────────────────────────────
-const S = { token: null, user: null, familias: [], itens: [] };
+const S = { token: null, user: null, familias: [], itens: [], todosItens: [] };
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 const BASE = '';
@@ -273,10 +273,11 @@ function logout() {
 }
 
 async function loadGlobals() {
-  [S.familias, S.itens] = await Promise.all([
+  [S.familias, S.todosItens] = await Promise.all([
     get('/api/familias/'),
-    get('/api/itens/')
+    get('/api/itens/', { apenas_ativos: true })
   ]);
+  S.itens = S.todosItens;
 }
 
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
@@ -328,7 +329,7 @@ function famOpts(sel) {
   return S.familias.map(f => `<option value="${f.id}" ${sel == f.id ? 'selected' : ''}>${f.nome}</option>`).join('');
 }
 function itensByTipo(tipos) {
-  return S.itens.filter(i => tipos.includes(i.tipo));
+  return S.todosItens.filter(i => tipos.includes(i.tipo) && i.is_active !== false);
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
@@ -427,9 +428,10 @@ async function loadItens() {
 
 async function refreshItens() {
   const params = { apenas_ativos: true };
-  if (itensFiltro.tipo) params.tipo = itensFiltro.tipo;
   if (itensFiltro.familia_id) params.familia_id = itensFiltro.familia_id;
-  S.itens = await get('/api/itens/', params);
+  // Always reload all items to keep todosItens fresh
+  S.todosItens = await get('/api/itens/', { apenas_ativos: true });
+  S.itens = S.todosItens;
   renderItensTable();
 }
 
@@ -539,6 +541,7 @@ function coletarReceita() {
 }
 
 async function modalNovoItem() {
+  if (!S.todosItens.length) S.todosItens = await get('/api/itens/', { apenas_ativos: true });
   const famOp = `<option value="">Sem família</option>` + famOpts();
   openModal(`<div class="modal">
     <h2>+ Novo Item</h2>
@@ -932,6 +935,7 @@ async function estornarLanc(id) {
 }
 
 async function modalNovaProducao() {
+  if (!S.todosItens.length) S.todosItens = await get('/api/itens/', { apenas_ativos: true });
   const piPa = itensByTipo(['PI','PA']);
   const opts = piPa.map(i => `<option value="${i.id}">[${i.tipo}] ${i.nome}</option>`).join('');
 
