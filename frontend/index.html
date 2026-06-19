@@ -464,6 +464,7 @@ function renderItensTable() {
       <td>${statusBadge(item.status_estoque)}</td>
       <td style="white-space:nowrap">
         <button class="btn-ghost btn-sm" onclick="verLotesItem(${item.id},this.dataset.nome)" data-nome="${item.nome}">🗂️ Lotes</button>
+        <button class="btn-ghost btn-sm" onclick="modalAjusteSaldo(${item.id})" title="Ajustar saldo">⚖️</button>
         <button class="btn-ghost btn-sm" onclick="modalEditarItem(${item.id})">✏️</button>
         <button class="btn-danger btn-sm" onclick="deletarItem(${item.id})">🗑️</button>
       </td>
@@ -1188,6 +1189,98 @@ async function desativarUser(id) {
   try { await del(`/api/users/${id}`); toast('Usuário desativado', 'info'); loadUsuarios(); }
   catch(e) { toast(e.message, 'error'); }
 }
+
+// ─── AJUSTE DE SALDO ─────────────────────────────────────────────────────────
+async function modalAjusteSaldo(itemId) {
+  const item = await get(`/api/itens/${itemId}`);
+  const lotes = await get(`/api/itens/${itemId}/lotes`);
+
+  const loteOpts = lotes.length
+    ? lotes.map(l => `<option value="${l.id}">${l.codigo_lote} — atual: ${fmt(l.quantidade_atual)} ${item.unidade}</option>`).join('')
+    : '';
+
+  openModal(`<div class="modal" style="max-width:500px">
+    <h2>⚖️ Ajuste de Saldo</h2>
+    <div class="alert alert-warn" style="margin-bottom:16px">
+      ⚠️ Use apenas para inventário físico, saldo inicial ou correção de erros.
+    </div>
+    <div style="font-size:13px;margin-bottom:16px;padding:12px;background:var(--bg3);border-radius:8px">
+      <b>${item.nome}</b> <span class="badge badge-${item.tipo.toLowerCase()}">${item.tipo}</span><br>
+      <span style="color:var(--text3)">Saldo atual: </span><b style="color:var(--accent)">${fmt(item.estoque_atual)} ${item.unidade}</b>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Lote a ajustar (opcional)</label>
+      <select id="aj-lote">
+        <option value="">— Criar novo lote "AJUSTE" —</option>
+        ${loteOpts}
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Nova quantidade total *</label>
+        <input type="number" id="aj-qtd" step="0.001" min="0" placeholder="Ex: 1500.5"
+          oninput="calcDiff(${item.estoque_atual}, '${item.unidade}')">
+      </div>
+      <div class="form-group">
+        <label>Diferença (será lançada)</label>
+        <input id="aj-diff" readonly style="font-weight:700">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Motivo *</label>
+      <input id="aj-obs" placeholder="Ex: Inventário físico — junho/2025">
+    </div>
+    <div class="form-group" style="margin-bottom:4px">
+      <label>Sua senha para confirmar *</label>
+      <input type="password" id="aj-senha" placeholder="••••••••">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" id="btn-aj-confirm"
+        onclick="confirmarAjuste(${item.id}, ${item.estoque_atual}, '${item.unidade}')">
+        Confirmar Ajuste
+      </button>
+    </div>
+  </div>`, refreshItens);
+}
+
+window.calcDiff = function(saldoAtual, unidade) {
+  const nova = parseFloat(document.getElementById('aj-qtd').value);
+  const el = document.getElementById('aj-diff');
+  if (isNaN(nova) || nova < 0) { el.value = ''; el.style.color = ''; return; }
+  const diff = nova - saldoAtual;
+  el.value = (diff >= 0 ? '+' : '') + fmt(diff) + ' ' + unidade;
+  el.style.color = diff >= 0 ? 'var(--green)' : 'var(--red)';
+};
+
+async function confirmarAjuste(itemId, saldoAtual, unidade) {
+  const novaQtd = parseFloat(document.getElementById('aj-qtd').value);
+  const obs     = document.getElementById('aj-obs').value.trim();
+  const senha   = document.getElementById('aj-senha').value;
+  const loteId  = document.getElementById('aj-lote').value || null;
+
+  if (isNaN(novaQtd) || novaQtd < 0) return toast('Quantidade inválida', 'error');
+  if (!obs)   return toast('Informe o motivo do ajuste', 'error');
+  if (!senha) return toast('Informe sua senha', 'error');
+
+  // Verifica a senha do usuário logado
+  const fd = new URLSearchParams({ username: S.user.email, password: senha });
+  const r = await fetch('/api/auth/token', { method: 'POST', body: fd });
+  if (!r.ok) return toast('Senha incorreta — ajuste não realizado', 'error');
+
+  const diff = novaQtd - saldoAtual;
+
+  try {
+    await post(`/api/itens/${itemId}/ajuste`, {
+      nova_quantidade: novaQtd,
+      lote_id: loteId ? parseInt(loteId) : null,
+      observacoes: obs
+    });
+    toast(`Saldo ajustado: ${diff >= 0 ? '+' : ''}${fmt(diff)} ${unidade}`, 'success');
+    closeModal();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
 </script>
 </body>
 </html>
